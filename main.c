@@ -5,9 +5,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define BUF_SIZE 2048
-#define MAX_SIZE 1024
-
 static long long backtracks = 0;
 void *printBacktracks(void *arg)
 {
@@ -21,6 +18,7 @@ void *printBacktracks(void *arg)
 
 bool checkClause(int const numVars, bool solution[numVars], int const clause[numVars])
 {
+	// if one variable is satisfied, return true
 	for (int i = 0; i < numVars; i++) {
 		int var = clause[i];
 		if (var == 0) {
@@ -38,6 +36,7 @@ bool checkClauses(int const numClauses,
 		bool solution[numVars],
 		int const clauses[numClauses][numVars])
 {
+	// all clauses need to be satisfied to return true
 	for (int i = 0; i < numClauses; i++) {
 		if (!checkClause(numVars, solution, clauses[i])) {
 			return false;
@@ -46,6 +45,11 @@ bool checkClauses(int const numClauses,
 	return true;
 }
 
+// Recursive function which naively tries all possible truth assignments and tests them
+// returns: true if satisfiable, solution contains the satisfying truth assignment
+//          false if unsatisfiable
+// the "index" argument indicates the depth of recursion, and also the index into the 
+// solution that this call is responsible for flipping
 bool solve(int const numClauses,
 		int const numVars,
 		bool solution[numVars],
@@ -55,6 +59,7 @@ bool solve(int const numClauses,
 	if (index == numVars) {
 		return checkClauses(numClauses, numVars, solution, clauses);
 	}
+	solution[index] = true;
 	if (solve(numClauses, numVars, solution, clauses, index + 1)) {
 		return true;
 	}
@@ -75,9 +80,6 @@ int main()
 	int clauses[numClauses][numVars];
 	// A potential solution is an array of bools, where the index is the "name" of the variable - 1
 	bool solution[numVars];
-	for (int i = 0; i < numVars; i++) {
-		solution[i] = true;
-	}
 
 	// Read all of the clauses
 	for (int clause = 0; clause < numClauses; clause++) {
