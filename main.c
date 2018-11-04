@@ -4,6 +4,17 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <omp.h>
+
+// Number of variables that will be set before each thread tries to find a solution
+#define PREFIX 3
+#define MAX_THREADS 1 << PREFIX
+
+// In general, don't use volatile for thread safety, it doesn't work.
+// Since all we are going to do is set this variable to true once, and all the threads *eventually* need to
+// know about it, volatile is probably enough so that the compiler won't completely optimize it out.
+// Using a lock here would actually be a significant performance cost.
+static volatile bool done = false;
 
 static long long backtracks = 0;
 void *printBacktracks(void *arg)
@@ -56,14 +67,17 @@ bool solve(int const numClauses,
 		int const clauses[numClauses][numVars],
 		int const index)
 {
-	if (index == numVars) {
+	if (done) {
+		return true;
+	}
+	if (index >= numVars) {
 		return checkClauses(numClauses, numVars, solution, clauses);
 	}
 	solution[index] = true;
 	if (solve(numClauses, numVars, solution, clauses, index + 1)) {
 		return true;
 	}
-	backtracks++;
+	__sync_fetch_and_add(&backtracks, 1);
 	solution[index] = !solution[index];
 	return solve(numClauses, numVars, solution, clauses, index + 1);
 }
@@ -78,8 +92,6 @@ int main()
 
 	// Array of clauses. Each clause is an array of integers.
 	int clauses[numClauses][numVars];
-	// A potential solution is an array of bools, where the index is the "name" of the variable - 1
-	bool solution[numVars];
 
 	// Read all of the clauses
 	for (int clause = 0; clause < numClauses; clause++) {
@@ -97,7 +109,28 @@ int main()
 	pthread_t tid;
 	pthread_create(&tid, NULL, &printBacktracks, NULL);
 
-	if (solve(numClauses, numVars, solution, clauses, 0)) {
+	bool satisfiable = false;
+	bool solution[numVars];
+
+#pragma omp parallel for
+	for (int i = 0; i < MAX_THREADS; i++) {
+		if (!satisfiable) {
+			// A potential solution is an array of bools, where the index is the "name" of the variable - 1
+			bool guess[numVars];
+			for (int bits = i, j = 0; j < PREFIX && j < numVars; bits >>= 1, j++) {
+				guess[j] = (bits & 1) != 0;
+			}
+			bool sat = solve(numClauses, numVars, guess, clauses, PREFIX);
+#pragma omp critical
+			if (sat && !satisfiable) {
+				done = true;
+				satisfiable = true;
+				memcpy(solution, guess, sizeof(solution));
+			}
+		}
+	}
+
+	if (satisfiable) {
 		printf("s SATISFIABLE\nv");
 		for (int i = 0; i < numVars; i++) {
 			printf(" %d", solution[i] ? i + 1 : -1 * (i + 1));
