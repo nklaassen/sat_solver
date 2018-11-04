@@ -5,11 +5,12 @@
 #include <pthread.h>
 #include <unistd.h>
 
+bool printOK = false; // printing status (true while solving, false when solved/unsolvable)
 static long long backtracks = 0;
 void *printBacktracks(void *arg)
 {
 	(void)arg;
-	while (true) {
+	while (printOK) {
 		sleep(2);
 		printf("backtracks: %lld\n", backtracks);
 	}
@@ -25,6 +26,7 @@ bool checkClause(int const numVars, bool solution[numVars], int const clause[num
 			break;
 		}
 		if (solution[abs(var) - 1] == (var > 0)) {
+		    printOK = true;
 			return true;
 		}
 	}
@@ -94,18 +96,61 @@ int main()
 		}
 	}
 
-	pthread_t tid;
-	pthread_create(&tid, NULL, &printBacktracks, NULL);
+//	pthread_t tid;
+//	pthread_create(&tid, NULL, &printBacktracks, NULL);
 
-	if (solve(numClauses, numVars, solution, clauses, 0)) {
+// guesses for solution[0] and solution[1], 1 pair per thread
+//    solution[0] = false;
+//    solution[1] = false;
+
+    solution[0] = true;
+    solution[1] = false;
+
+//    solution[0] = false;
+//    solution[1] = true;
+    
+//    solution[0] = true;
+//    solution[1] = true;
+
+// structure to hold arguments for solve(...)
+    struct threadData {
+        int argnumClauses;
+        int argnumVars;
+        bool argsolution[numVars];
+        int argclauses[numClauses][numVars];
+        int argindex;
+    };
+
+// populate solve(...) argument structure
+    struct threadData data0;
+    struct threadData *dataPtr0;
+    dataPtr0 = &data0;
+    data0.argnumClauses = numClauses;
+    data0.argnumVars = numVars;
+    for (int i = 0; i < 2; i++){
+        data0.argsolution[i] = solution[i];
+    }
+    for (int i = 0; i < numClauses; i++){
+        for (int j = 0; j < numVars; j++){
+            data0.argclauses[i][j] = clauses[i][j];
+        }
+    }
+    data0.argindex = 2; // start at index 2 because indices 0, 1 guessed
+	pthread_t tidS;
+	if (pthread_create(&tidS, NULL, (void *) &solve, (void *) &dataPtr0)){
+	    printOK = false; // stop printing progress report
 		printf("s SATISFIABLE\nv");
 		for (int i = 0; i < numVars; i++) {
 			printf(" %d", solution[i] ? i + 1 : -1 * (i + 1));
 		}
 		printf(" 0\n");
 	} else {
+	    printOK = false; // stop printing progress report
 		printf("s UNSATISFIABLE\n");
 	}
+
+//    pthread_join(tid, NULL);
+    pthread_join(tidS, NULL);
 
 	return 0;
 }
