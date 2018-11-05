@@ -36,7 +36,6 @@ bool checkClause(int const numVars, bool solution[numVars], int const *clause)
 bool checkClauses(int const numClauses,
 		int const numVars,
 		bool solution[numVars],
-		//int clauses[numVars][numClauses])
 		int *clauses)
 {
 	// all clauses need to be satisfied to return true
@@ -122,7 +121,6 @@ int main()
 	scanf("%s %s %d %d\n", junk, junk, &numVars, &numClauses);
 
 	// Array of clauses. Each clause is an array of integers.
-	//int clauses[numClauses][numVars];
 	int* clauses = (int*)malloc(numVars * numClauses * sizeof(int));
 
 	// A potential solution is an array of bools, where the index is the "name" of the variable - 1
@@ -133,7 +131,6 @@ int main()
 		int var;
 		scanf("%d", &var);
 		for (int i = 0; i < numVars; i++) {
-			//clauses[clause][i] = var;
 			*(clauses + clause*numVars + i) = var;
 			if (var == 0) {
 				break;
@@ -145,6 +142,7 @@ int main()
 	pthread_t bt_tid;
 	pthread_create(&bt_tid, NULL, &printBacktracks, NULL);
 
+	// Number of threads must be a power of 2
 	unsigned threadPow = 2;
 	unsigned numThreads = 1 << threadPow;
 	pthread_t tid[numThreads];
@@ -152,6 +150,8 @@ int main()
 
 	for(int i=0; i<numThreads; i++)
 	{
+		// Thread only gets a pointer to the arguments, so we need to 
+		// populate a different struct for each thread
 		args[i].threadPow = threadPow;
 		args[i].threadNum = i;
 		args[i].numVars = numVars;
