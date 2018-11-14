@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 static long long backtracks = 0;
-pthread_mutex_t bt_lock;
 
 void *printBacktracks(void *arg)
 {
@@ -72,9 +71,7 @@ bool solve(int const numClauses,
 	if (solve(numClauses, numVars, solution, clauses, index + 1)) {
 		return true;
 	}
-	pthread_mutex_lock(&bt_lock);
-	backtracks++;
-	pthread_mutex_unlock(&bt_lock);
+	__sync_fetch_and_add(&backtracks, 1);
 	solution[index] = !solution[index];
 	return solve(numClauses, numVars, solution, clauses, index + 1);
 }
