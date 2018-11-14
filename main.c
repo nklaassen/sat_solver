@@ -101,7 +101,7 @@ void* solveThread(void* arg)
 	// Check recursively. If a solution is found, set the global flag and write
 	// the solution to solutionDone. 
 	if(solve(info.numClauses, info.numVars, solution, info.clauses, info.threadPow)) {
-		if(__sync_fetch_and_add(&solved, 1)) {
+		if(!__sync_fetch_and_add(&solved, 1)) {
 			for(int i=0; i<info.numVars; i++) {
 				info.solutionDone[i] = solution[i];
 			}
